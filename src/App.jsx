@@ -10,7 +10,7 @@ export default function UmabashiraViewer() {
   const [copyLabel, setCopyLabel] = useState("全頭コピー");
 
   const missingCount = horses.filter((h) => {
-    const fields = [h.sire, h.dam, h.damSire, h.lastRace, h.finish, h.corner, h.lastFurlong, h.weightChange];
+    const fields = [h.sire, h.dam, h.damSire, h.lastRace, h.corner, h.lastFurlong];
     return fields.some((f) => !f);
   }).length;
 
@@ -43,7 +43,7 @@ export default function UmabashiraViewer() {
         }
         lines.push(`${h.umaban}${h.name}`);
         lines.push(`前走:${h.lastRace || "不明"}`);
-        lines.push(`着順:${h.finish || "不明"}　4角位置:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
+        lines.push(`4角位置:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
         lines.push(`騎手:${h.jockey || "不明"}`);
         lines.push(`父:${h.sire || "不明"}　母:${h.dam || "不明"}　母父:${h.damSire || "不明"}`);
         lines.push("");
@@ -97,9 +97,10 @@ ${pastedText}
 - 貼り付け内容の表記が崩れていても、可能な範囲で読み取る
 - 血統(父・母・母父)、前走成績、コーナー通過順位、上がり3Fタイムなどが
   含まれていれば、それぞれ対応する項目に入れる。含まれていなければ null
-- **出力は簡潔にすること。** 特に lastRace(前走)は「日付・競馬場・レース名・
-  距離・馬場状態」を短く並べるだけにし、説明的な文章にしない
-  (例:「26.7.5小倉 北九州記念(G3)芝1200重」のように)
+- **出力は簡潔にすること。** lastRace(前走)は「日付・競馬場・レース名・
+  距離・馬場状態・着順」を短く並べるだけにし、説明的な文章にしない
+  (例:「26.7.5小倉 北九州記念(G3)芝1200重 6着」のように)
+- 馬体重は今回不要。取得しない
 
 出力は以下のJSON形式のみ。説明文やマークダウンのコードフェンスは付けないこと。
 
@@ -117,12 +118,9 @@ ${pastedText}
       "sire": "父",
       "dam": "母",
       "damSire": "母父",
-      "lastRace": "前走の概要。休養明けなら「休養明け」と明記。分からなければ null",
-      "finish": "着順/頭数/人気。分からなければ null",
-      "corner": "コーナー通過順位。分からなければ null",
-      "lastFurlong": "上がり3Fタイム(秒)。分からなければ null",
-      "weightChange": "馬体重(増減)。分からなければ null",
-      "profileUrl": null
+      "lastRace": "前走の概要(日付・競馬場・レース名・距離・馬場状態・着順まで含める)。休養明けなら「休養明け」と明記。分からなければ null",
+      "corner": "コーナー通過順位(例:9-8)。分からなければ null",
+      "lastFurlong": "上がり3Fタイム(秒、例:34.5)。分からなければ null"
     }
   ]
 }
