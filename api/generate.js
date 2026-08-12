@@ -81,7 +81,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "claude-sonnet-5",
-        max_tokens: 8000,
+        max_tokens: 16000,
         messages: [{ role: "user", content: prompt }],
         // ツールなし。検索・ページ取得は一切行わない。
         // 貼り付けられたテキストをJSONに整形するだけなので、費用が安定して低い。
