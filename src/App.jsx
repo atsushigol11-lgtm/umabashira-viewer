@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 
 export default function UmabashiraViewer() {
+  // プロンプトやJSONの項目構成を変えたら、このバージョンを上げること。
+  // こうしておくと、同じページを貼っても古いキャッシュが自動的に無効になり、
+  // 毎回手動でUpstashのキャッシュを消す必要がなくなる。
+  const PROMPT_VERSION = "v4";
+
   const [raceName, setRaceName] = useState("");
   const [pastedText, setPastedText] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
@@ -93,8 +98,10 @@ export default function UmabashiraViewer() {
     setHorses([]);
     setMeta(null);
 
-    // 貼り付けテキストのハッシュ的なものをキャッシュキーにする(先頭200文字+長さ)
-    const cacheKey = `paste|${pastedText.length}|${pastedText.slice(0, 200)}`;
+    // 貼り付けテキストのハッシュ的なものをキャッシュキーにする(先頭200文字+長さ)。
+    // PROMPT_VERSIONも含めることで、プロンプトを変更した際に古いキャッシュが
+    // 自動的に無効になる(同じキーにならない)。
+    const cacheKey = `paste|${PROMPT_VERSION}|${pastedText.length}|${pastedText.slice(0, 200)}`;
 
     const prompt = `あなたはJRA(中央競馬)のレースデータ整理アシスタントです。
 以下は、netkeibaまたはJRA公式サイトのページから人間がコピーして貼り付けた
