@@ -160,7 +160,7 @@ ${dateHint}
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
+        body: JSON.stringify({ prompt, cacheKey: `${raceName}|${raceDate}` }),
       });
 
       if (!response.ok) {
@@ -217,7 +217,7 @@ ${dateHint}
         return;
       }
 
-      setMeta({ title: parsed.raceTitle || raceName, info: parsed.raceInfo });
+      setMeta({ title: parsed.raceTitle || raceName, info: parsed.raceInfo, fromCache: !!data._fromCache });
       setHorses(parsed.horses || []);
       setStatus("done");
     } catch (e) {
@@ -341,6 +341,11 @@ ${dateHint}
           <div>
             <div className="mb-4">
               <h2 className="text-xl font-bold">{meta?.title}</h2>
+              {meta?.fromCache && (
+                <p className="text-xs" style={{ color: "#1C6B41" }}>
+                  ⚡ 保存済みデータから即座に表示(検索なし)
+                </p>
+              )}
               {meta?.info && (
                 <p className="text-sm" style={{ color: "#5B6B60" }}>
                   {meta.info}
