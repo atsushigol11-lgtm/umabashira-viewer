@@ -73,27 +73,26 @@ export default function UmabashiraViewer() {
 
   function handleCopy() {
     const lines = [];
-    lines.push(`【${meta?.title || raceName}】`);
+    lines.push(`${meta?.title || raceName}`);
     if (meta?.info) lines.push(meta.info);
     lines.push("");
 
-    horses.forEach((h) => {
-      lines.push(`${h.waku}-${h.umaban} ${h.name}(${h.sexAge || "?"}/${h.weight || "?"}kg)`);
-      lines.push(`騎手:${h.jockey || "不明"}`);
-      const ped = [h.sire, h.dam, h.damSire].filter(Boolean).join(" / ");
-      lines.push(`血統:${ped || "要確認"}`);
-      lines.push(`前走:${h.lastRace || "要確認"}`);
-      const finishLine = [
-        h.finish ? `着順${h.finish}` : null,
-        h.corner ? `通過${h.corner}` : null,
-        h.lastFurlong ? `上がり${h.lastFurlong}` : null,
-        h.weightChange ? `体重${h.weightChange}` : null,
-      ]
-        .filter(Boolean)
-        .join(" / ");
-      if (finishLine) lines.push(finishLine);
-      lines.push("");
-    });
+    let lastWaku = null;
+    horses
+      .slice()
+      .sort((a, b) => (a.waku - b.waku) || (a.umaban - b.umaban))
+      .forEach((h) => {
+        if (h.waku !== lastWaku) {
+          lines.push(`【${h.waku}枠】`);
+          lastWaku = h.waku;
+        }
+        lines.push(`${h.umaban}${h.name}`);
+        lines.push(`前走:${h.lastRace || "不明"}`);
+        lines.push(`着順:${h.finish || "不明"}　4角位置:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
+        lines.push(`騎手:${h.jockey || "不明"}`);
+        lines.push(`父:${h.sire || "不明"}　母:${h.dam || "不明"}　母父:${h.damSire || "不明"}`);
+        lines.push("");
+      });
 
     const text = lines.join("\n").trim();
 
@@ -426,96 +425,58 @@ ${pastedText}
               )}
             </div>
 
-            {/* Desktop table */}
-            <div className="hidden md:block overflow-x-auto rounded-lg" style={{ border: "1px solid #D8DCD4" }}>
-              <table className="w-full text-sm bg-white">
-                <thead>
-                  <tr style={{ background: "#14201A", color: "#FFFFFF" }}>
-                    <th className="px-3 py-2 text-left font-bold">枠</th>
-                    <th className="px-3 py-2 text-left font-bold">馬名</th>
-                    <th className="px-3 py-2 text-left font-bold">性齢/斤量</th>
-                    <th className="px-3 py-2 text-left font-bold">騎手</th>
-                    <th className="px-3 py-2 text-left font-bold">血統(父/母/母父)</th>
-                    <th className="px-3 py-2 text-left font-bold">前走</th>
-                    <th className="px-3 py-2 text-left font-bold">着順</th>
-                    <th className="px-3 py-2 text-left font-bold">通過</th>
-                    <th className="px-3 py-2 text-left font-bold">上がり3F</th>
-                    <th className="px-3 py-2 text-left font-bold">体重</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {horses.map((h, i) => (
-                    <tr
-                      key={i}
-                      style={{
-                        borderTop: "1px solid #EAEBE7",
-                        background: i % 2 === 0 ? "#FFFFFF" : "#F7F8F5",
-                      }}
-                    >
-                      <td className="px-3 py-2">
-                        <div className="flex items-center gap-2">
+            {/* 出走馬リスト(最初に送ってもらった形式に合わせる) */}
+            <div className="space-y-1">
+              {horses
+                .slice()
+                .sort((a, b) => (a.waku - b.waku) || (a.umaban - b.umaban))
+                .map((h, i, arr) => {
+                  const showWakuHeader = i === 0 || arr[i - 1].waku !== h.waku;
+                  return (
+                    <React.Fragment key={i}>
+                      {showWakuHeader && (
+                        <div className="flex items-center gap-2 pt-4 pb-1 first:pt-0">
                           <WakuBadge n={h.waku} />
-                          <span className="tabular-nums font-bold">{h.umaban}</span>
+                          <span className="text-sm font-bold" style={{ color: "#5B6B60" }}>
+                            {h.waku}枠
+                          </span>
                         </div>
-                      </td>
-                      <td className="px-3 py-2 font-bold whitespace-nowrap">{h.name}</td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        {h.sexAge} / {h.weight}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">{h.jockey}</td>
-                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: "#5B6B60" }}>
-                        <Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={null} />
-                      </td>
-                      <td className="px-3 py-2" style={{ minWidth: "220px" }}>
-                        <Cell value={h.lastRace} profileUrl={null} />
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.finish} profileUrl={null} />
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.corner} profileUrl={null} />
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.lastFurlong} profileUrl={null} />
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.weightChange} profileUrl={null} />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3">
-              {horses.map((h, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg p-4"
-                  style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <WakuBadge n={h.waku} />
-                    <span className="tabular-nums font-bold text-sm">{h.umaban}</span>
-                    <span className="font-bold">{h.name}</span>
-                  </div>
-                  <div className="text-xs grid grid-cols-2 gap-x-3 gap-y-1" style={{ color: "#5B6B60" }}>
-                    <div>{h.sexAge} / {h.weight}kg</div>
-                    <div>騎手:{h.jockey}</div>
-                    <div className="col-span-2">
-                      血統:<Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={null} />
-                    </div>
-                    <div className="col-span-2">
-                      前走:<Cell value={h.lastRace} profileUrl={null} />
-                    </div>
-                    <div>着順:<Cell value={h.finish} profileUrl={null} /></div>
-                    <div>通過:<Cell value={h.corner} profileUrl={null} /></div>
-                    <div>上がり3F:<Cell value={h.lastFurlong} profileUrl={null} /></div>
-                    <div>体重:<Cell value={h.weightChange} profileUrl={null} /></div>
-                  </div>
-                </div>
-              ))}
+                      )}
+                      <div
+                        className="rounded-lg p-4"
+                        style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
+                      >
+                        <p className="font-bold text-base mb-1">
+                          {h.umaban}　{h.name}
+                          <span className="font-normal text-sm ml-2" style={{ color: "#5B6B60" }}>
+                            {h.sexAge} / {h.weight}kg
+                          </span>
+                        </p>
+                        <p className="text-sm">
+                          前走:<Cell value={h.lastRace} profileUrl={null} />
+                        </p>
+                        <p className="text-sm">
+                          着順:<Cell value={h.finish} profileUrl={null} />
+                          {"　"}4角位置:<Cell value={h.corner} profileUrl={null} />
+                          {"　"}上がり3F:<Cell value={h.lastFurlong} profileUrl={null} />
+                        </p>
+                        <p className="text-sm">
+                          騎手:<Cell value={h.jockey} profileUrl={null} />
+                        </p>
+                        <p className="text-sm" style={{ color: "#5B6B60" }}>
+                          父:<Cell value={h.sire} profileUrl={null} />
+                          {"　"}母:<Cell value={h.dam} profileUrl={null} />
+                          {"　"}母父:<Cell value={h.damSire} profileUrl={null} />
+                        </p>
+                        {h.weightChange && (
+                          <p className="text-sm" style={{ color: "#5B6B60" }}>
+                            馬体重:{h.weightChange}
+                          </p>
+                        )}
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
             </div>
           </div>
         )}
