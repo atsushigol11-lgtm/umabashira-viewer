@@ -4,7 +4,7 @@ export default function UmabashiraViewer() {
   // プロンプトやJSONの項目構成を変えたら、このバージョンを上げること。
   // こうしておくと、同じページを貼っても古いキャッシュが自動的に無効になり、
   // 毎回手動でUpstashのキャッシュを消す必要がなくなる。
-  const PROMPT_VERSION = "v5";
+  const PROMPT_VERSION = "v6";
 
   const [raceName, setRaceName] = useState("");
   const [pastedText, setPastedText] = useState("");
@@ -57,7 +57,7 @@ export default function UmabashiraViewer() {
         lines.push(`前走:${h.lastRace || "不明"}`);
         lines.push(`4角:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
         if (h.courseFit) lines.push(`同条件経験:${h.courseFit}`);
-        lines.push(`騎手:${h.jockey || "不明"}`);
+        lines.push(`騎手:${h.jockey || "不明"}　前走騎手:${h.lastJockey || "不明"}`);
         lines.push(`父:${h.sire || "不明"}　母:${h.dam || "不明"}　母父:${h.damSire || "不明"}`);
         lines.push("");
       });
@@ -116,7 +116,10 @@ ${pastedText}
   距離・馬場状態・着順」を短く並べるだけにし、説明的な文章にしない
   (例:「26.7.5小倉 北九州記念(G3)芝1200重 6着」のように)
 - 馬体重は今回不要。取得しない
-- weight(今回の斤量)とlastWeight(前走の斤量)は、それぞれ独立して読み取ること
+- weight(今回の斤量)とlastWeight(前走の斤量)、jockey(今回の騎手)と
+  lastJockey(前走の騎手)は、それぞれ別々の箇所から独立して読み取ること。
+  今回の騎手欄はフルネーム、前走欄は苗字だけの表記になっていることがあるが、
+  それぞれをそのまま書き写すだけでよい(同一人物かどうかの判定はしない)
 - **courseFitについて**:貼り付け内容には前走だけでなく、2走前・3走前など
   複数走分のデータが含まれていることがある。今回のレースの競馬場・距離
   (raceInfoやレース名から判断)と**同じ競馬場・同じ距離**を過去に走った
@@ -139,6 +142,7 @@ ${pastedText}
       "weight": "今回の斤量(数字のみ、例:53.0)",
       "lastWeight": "前走の斤量(数字のみ)。分からなければ null",
       "jockey": "騎手名(今回のレース)",
+      "lastJockey": "前走の騎手名。分からなければ null",
       "sire": "父",
       "dam": "母",
       "damSire": "母父",
