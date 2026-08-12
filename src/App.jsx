@@ -42,9 +42,24 @@ export default function UmabashiraViewer() {
           lastWaku = h.waku;
         }
         lines.push(`${h.umaban}${h.name}`);
+        const weightDiff =
+          h.weight && h.lastWeight && !isNaN(parseFloat(h.weight)) && !isNaN(parseFloat(h.lastWeight))
+            ? parseFloat(h.weight) - parseFloat(h.lastWeight)
+            : null;
+        const weightDiffText =
+          weightDiff === null ? "" : weightDiff === 0 ? "(±0)" : weightDiff > 0 ? `(+${weightDiff})` : `(${weightDiff})`;
+        lines.push(`斤量:${h.weight || "不明"}kg${weightDiffText}`);
         lines.push(`前走:${h.lastRace || "不明"}`);
-        lines.push(`4角位置:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
-        lines.push(`騎手:${h.jockey || "不明"}`);
+        lines.push(`4角:${h.corner || "不明"}　上がり3F:${h.lastFurlong || "不明"}`);
+        if (h.courseFit) lines.push(`同条件経験:${h.courseFit}`);
+        const jockeyNote = h.lastJockey
+          ? h.jockey && h.jockey === h.lastJockey
+            ? "継続"
+            : h.jockey
+            ? "乗り替わり"
+            : ""
+          : "";
+        lines.push(`騎手:${h.jockey || "不明"}${jockeyNote ? `(${jockeyNote})` : ""}${h.lastJockey ? `　前走騎手:${h.lastJockey}` : ""}`);
         lines.push(`父:${h.sire || "不明"}　母:${h.dam || "不明"}　母父:${h.damSire || "不明"}`);
         lines.push("");
       });
@@ -101,6 +116,16 @@ ${pastedText}
   距離・馬場状態・着順」を短く並べるだけにし、説明的な文章にしない
   (例:「26.7.5小倉 北九州記念(G3)芝1200重 6着」のように)
 - 馬体重は今回不要。取得しない
+- jockey(今回の騎手)とlastJockey(前走の騎手)は、貼り付け内容の別々の
+  箇所(出走表の騎手欄と、前走列の騎手欄)から、それぞれ独立して読み取ること
+- weight(今回の斤量)とlastWeight(前走の斤量)も、同様にそれぞれ独立して読み取ること
+- **courseFitについて**:貼り付け内容には前走だけでなく、2走前・3走前など
+  複数走分のデータが含まれていることがある。今回のレースの競馬場・距離
+  (raceInfoやレース名から判断)と**同じ競馬場・同じ距離**を過去に走った
+  記録が、表示されている範囲内(見える走数まで)にあれば、直近1件を
+  「○走前:競馬場+距離 着順」のように簡潔にcourseFitへ入れる
+  (例:「3走前:阪神1600 3着」)。該当がなければ null。無理に探さず、
+  貼り付け内容に明確に載っている範囲でのみ判定すること
 
 出力は以下のJSON形式のみ。説明文やマークダウンのコードフェンスは付けないこと。
 
@@ -113,14 +138,17 @@ ${pastedText}
       "umaban": 1,
       "name": "馬名",
       "sexAge": "牝5",
-      "weight": "53.0",
-      "jockey": "騎手名",
+      "weight": "今回の斤量(数字のみ、例:53.0)",
+      "lastWeight": "前走の斤量(数字のみ)。分からなければ null",
+      "jockey": "騎手名(今回のレース)",
+      "lastJockey": "前走の騎手名。分からなければ null",
       "sire": "父",
       "dam": "母",
       "damSire": "母父",
       "lastRace": "前走の概要(日付・競馬場・レース名・距離・馬場状態・着順まで含める)。休養明けなら「休養明け」と明記。分からなければ null",
-      "corner": "コーナー通過順位(例:9-8)。分からなければ null",
-      "lastFurlong": "上がり3Fタイム(秒、例:34.5)。分からなければ null"
+      "corner": "4コーナー通過時の順位(数字のみ)。「2-2」や「9-8」のように2つの数字が並んでいる場合は、後ろの数字(4コーナー)だけを使う。例:「2-2」なら2、「9-8」なら8。分からなければ null",
+      "lastFurlong": "上がり3Fタイム(秒、例:34.5)。分からなければ null",
+      "courseFit": "今回と同じ競馬場・同じ距離を過去に走った記録があれば「○走前:競馬場+距離 着順」の形で簡潔に。無ければ null"
     }
   ]
 }
