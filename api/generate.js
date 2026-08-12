@@ -90,8 +90,11 @@ export default async function handler(req, res) {
 
     const data = await anthropicRes.json();
 
-    // 成功した結果だけキャッシュに保存する
-    if (cacheKey && anthropicRes.ok) {
+    // 成功した結果だけキャッシュに保存する。
+    // stop_reasonがmax_tokens(途中で切れた失敗)の場合は、絶対にキャッシュしない。
+    // ここでキャッシュしてしまうと、後でmax_tokensの上限を上げても
+    // 同じ内容を貼った際に古い「失敗結果」がずっと返り続けてしまう。
+    if (cacheKey && anthropicRes.ok && data.stop_reason !== "max_tokens") {
       await setCache(cacheKey, data);
     }
 
