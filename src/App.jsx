@@ -1,50 +1,5 @@
 import React, { useState } from "react";
 
-const WAKU_STYLES = {
-  1: { bg: "#FFFFFF", fg: "#14201A", border: "#14201A" },
-  2: { bg: "#14201A", fg: "#FFFFFF", border: "#14201A" },
-  3: { bg: "#C6362B", fg: "#FFFFFF", border: "#C6362B" },
-  4: { bg: "#1E5FA8", fg: "#FFFFFF", border: "#1E5FA8" },
-  5: { bg: "#E8C13A", fg: "#14201A", border: "#E8C13A" },
-  6: { bg: "#1C6B41", fg: "#FFFFFF", border: "#1C6B41" },
-  7: { bg: "#D97B2B", fg: "#FFFFFF", border: "#D97B2B" },
-  8: { bg: "#D96E9A", fg: "#FFFFFF", border: "#D96E9A" },
-};
-
-function Cell({ value, profileUrl }) {
-  if (value) return <>{value}</>;
-  if (profileUrl) {
-    return (
-      <a
-        href={profileUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="underline"
-        style={{ color: "#1E5FA8" }}
-      >
-        要確認 →
-      </a>
-    );
-  }
-  return <span style={{ color: "#C4C9C0" }}>—</span>;
-}
-
-function WakuBadge({ n }) {
-  const s = WAKU_STYLES[n] || WAKU_STYLES[1];
-  return (
-    <span
-      style={{
-        background: s.bg,
-        color: s.fg,
-        border: `1.5px solid ${s.border}`,
-      }}
-      className="inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-bold tabular-nums shrink-0"
-    >
-      {n}
-    </span>
-  );
-}
-
 export default function UmabashiraViewer() {
   const [raceName, setRaceName] = useState("");
   const [pastedText, setPastedText] = useState("");
@@ -71,7 +26,7 @@ export default function UmabashiraViewer() {
     }
   }
 
-  function handleCopy() {
+  function buildText() {
     const lines = [];
     lines.push(`${meta?.title || raceName}`);
     if (meta?.info) lines.push(meta.info);
@@ -94,7 +49,11 @@ export default function UmabashiraViewer() {
         lines.push("");
       });
 
-    const text = lines.join("\n").trim();
+    return lines.join("\n").trim();
+  }
+
+  function handleCopy() {
+    const text = buildText();
 
     navigator.clipboard
       .writeText(text)
@@ -138,6 +97,9 @@ ${pastedText}
 - 貼り付け内容の表記が崩れていても、可能な範囲で読み取る
 - 血統(父・母・母父)、前走成績、コーナー通過順位、上がり3Fタイムなどが
   含まれていれば、それぞれ対応する項目に入れる。含まれていなければ null
+- **出力は簡潔にすること。** 特に lastRace(前走)は「日付・競馬場・レース名・
+  距離・馬場状態」を短く並べるだけにし、説明的な文章にしない
+  (例:「26.7.5小倉 北九州記念(G3)芝1200重」のように)
 
 出力は以下のJSON形式のみ。説明文やマークダウンのコードフェンスは付けないこと。
 
@@ -332,6 +294,21 @@ ${pastedText}
             迷ったら「netkeibaを開く」でOK。情報が一番多い(血統・前走・
             コーナー通過・上がり3Fが全部載っている)。
           </p>
+          <div
+            className="rounded-md p-3 mt-3 text-xs leading-relaxed"
+            style={{ background: "#FBF3E4", border: "1px solid #E8D5A8", color: "#7A5C1E" }}
+          >
+            <p className="font-bold mb-1">⚠️ 開いた後、タブに注意</p>
+            <p>
+              netkeibaのページには上部にたくさんタブが並んでいます(出走馬・競馬新聞・
+              馬柱(5走)・血統・など)。<span className="font-bold">「馬柱(5走)」というタブを
+              クリックしてから</span>コピーしてください。
+            </p>
+            <p className="mt-1">
+              「<span className="font-bold">血統</span>」タブは課金しないと途中までしか
+              見られないので、使わないでください。
+            </p>
+          </div>
         </div>
 
         {/* Step 2: paste */}
@@ -347,7 +324,7 @@ ${pastedText}
               2
             </span>
             <label className="text-sm font-bold" style={{ color: "#14201A" }}>
-              開いたページの中身を全部コピーして、下に貼り付ける
+              「馬柱(5走)」タブの中身を全部コピーして、下に貼り付ける
             </label>
           </div>
 
@@ -425,58 +402,12 @@ ${pastedText}
               )}
             </div>
 
-            {/* 出走馬リスト(最初に送ってもらった形式に合わせる) */}
-            <div className="space-y-1">
-              {horses
-                .slice()
-                .sort((a, b) => (a.waku - b.waku) || (a.umaban - b.umaban))
-                .map((h, i, arr) => {
-                  const showWakuHeader = i === 0 || arr[i - 1].waku !== h.waku;
-                  return (
-                    <React.Fragment key={i}>
-                      {showWakuHeader && (
-                        <div className="flex items-center gap-2 pt-4 pb-1 first:pt-0">
-                          <WakuBadge n={h.waku} />
-                          <span className="text-sm font-bold" style={{ color: "#5B6B60" }}>
-                            {h.waku}枠
-                          </span>
-                        </div>
-                      )}
-                      <div
-                        className="rounded-lg p-4"
-                        style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
-                      >
-                        <p className="font-bold text-base mb-1">
-                          {h.umaban}　{h.name}
-                          <span className="font-normal text-sm ml-2" style={{ color: "#5B6B60" }}>
-                            {h.sexAge} / {h.weight}kg
-                          </span>
-                        </p>
-                        <p className="text-sm">
-                          前走:<Cell value={h.lastRace} profileUrl={null} />
-                        </p>
-                        <p className="text-sm">
-                          着順:<Cell value={h.finish} profileUrl={null} />
-                          {"　"}4角位置:<Cell value={h.corner} profileUrl={null} />
-                          {"　"}上がり3F:<Cell value={h.lastFurlong} profileUrl={null} />
-                        </p>
-                        <p className="text-sm">
-                          騎手:<Cell value={h.jockey} profileUrl={null} />
-                        </p>
-                        <p className="text-sm" style={{ color: "#5B6B60" }}>
-                          父:<Cell value={h.sire} profileUrl={null} />
-                          {"　"}母:<Cell value={h.dam} profileUrl={null} />
-                          {"　"}母父:<Cell value={h.damSire} profileUrl={null} />
-                        </p>
-                        {h.weightChange && (
-                          <p className="text-sm" style={{ color: "#5B6B60" }}>
-                            馬体重:{h.weightChange}
-                          </p>
-                        )}
-                      </div>
-                    </React.Fragment>
-                  );
-                })}
+            {/* 出走馬リスト:カードに区切らず、1つのテキストの塊として表示 */}
+            <div
+              className="rounded-lg p-5 whitespace-pre-wrap text-sm leading-relaxed"
+              style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
+            >
+              {buildText()}
             </div>
           </div>
         )}
