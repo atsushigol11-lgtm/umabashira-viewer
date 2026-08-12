@@ -47,7 +47,7 @@ function WakuBadge({ n }) {
 
 export default function UmabashiraViewer() {
   const [raceName, setRaceName] = useState("");
-  const [raceDate, setRaceDate] = useState("");
+  const [pastedText, setPastedText] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | done | error
   const [errorMsg, setErrorMsg] = useState("");
   const [meta, setMeta] = useState(null);
@@ -58,6 +58,18 @@ export default function UmabashiraViewer() {
     const fields = [h.sire, h.dam, h.damSire, h.lastRace, h.finish, h.corner, h.lastFurlong, h.weightChange];
     return fields.some((f) => !f);
   }).length;
+
+  function openSearch(site) {
+    const q = raceName.trim() || "";
+    if (site === "netkeiba") {
+      window.open(
+        `https://www.google.com/search?q=${encodeURIComponent(q + " 出馬表 netkeiba 馬柱")}`,
+        "_blank"
+      );
+    } else {
+      window.open("https://www.jra.go.jp/keiba/thisweek/", "_blank");
+    }
+  }
 
   function handleCopy() {
     const lines = [];
@@ -97,9 +109,9 @@ export default function UmabashiraViewer() {
       });
   }
 
-  async function handleFetch() {
-    if (!raceName.trim()) {
-      setErrorMsg("レース名を入力してください");
+  async function handleParse() {
+    if (!pastedText.trim()) {
+      setErrorMsg("ページの内容を貼り付けてください");
       setStatus("error");
       return;
     }
@@ -108,29 +120,30 @@ export default function UmabashiraViewer() {
     setHorses([]);
     setMeta(null);
 
-    const dateHint = raceDate ? `開催日:${raceDate}` : "開催日:指定なし(直近の該当開催と推定してよい)";
+    // 貼り付けテキストのハッシュ的なものをキャッシュキーにする(先頭200文字+長さ)
+    const cacheKey = `paste|${pastedText.length}|${pastedText.slice(0, 200)}`;
 
     const prompt = `あなたはJRA(中央競馬)のレースデータ整理アシスタントです。
-以下のレースについて、netkeibaの「馬柱(5走表示)」ページ(shutuba_past.html)を
-web_searchで調べて、出走馬全頭のデータをJSONで返してください。
+以下は、netkeibaまたはJRA公式サイトのページから人間がコピーして貼り付けた
+テキストです。検索や外部アクセスは一切行わず、**この貼り付けられた内容だけを
+根拠に**、出走馬全頭のデータをJSONで整理してください。
 
-レース名:${raceName}
-${dateHint}
+レース名(参考。貼り付け内容が正なら不要):${raceName || "(未入力)"}
 
-手順:
-1. web_searchで「${raceName} 出馬表 netkeiba」のように検索し、該当レースのnetkeiba race_idを特定する
-2. 「馬柱(5走表示)」に相当する情報(血統・前走成績・コーナー通過順位・上がり3Fタイム)を検索結果から集める
-3. **手順2で埋まらない馬・項目があれば、諦めずに「[馬名] netkeiba」のように
-   馬単位で再検索し、個別の馬ページから血統・近走成績を補う。これを全馬に対して行う**
-4. それでも見つからない項目だけ、無理に埋めず null にする
-5. 各馬について、可能であればnetkeibaの馬個別ページのURL(db.netkeiba.com/horse/で
-   始まるURL)を profileUrl として取得する。これは値が null の項目があるかどうかに
-   関わらず、分かる範囲で必ず入れる(人が後で確認できるようにするため)
+---貼り付けられた内容---
+${pastedText}
+---ここまで---
+
+ルール:
+- 貼り付け内容に書かれていない情報は、絶対に推測や創作で埋めない。null にする
+- 貼り付け内容の表記が崩れていても、可能な範囲で読み取る
+- 血統(父・母・母父)、前走成績、コーナー通過順位、上がり3Fタイムなどが
+  含まれていれば、それぞれ対応する項目に入れる。含まれていなければ null
 
 出力は以下のJSON形式のみ。説明文やマークダウンのコードフェンスは付けないこと。
 
 {
-  "raceTitle": "正式なレース名(グレードがあれば含む)",
+  "raceTitle": "正式なレース名(グレードがあれば含む)。貼り付け内容から読み取る",
   "raceInfo": "開催日・競馬場・距離・馬場の簡潔な一行(分からなければ null)",
   "horses": [
     {
@@ -143,24 +156,24 @@ ${dateHint}
       "sire": "父",
       "dam": "母",
       "damSire": "母父",
-      "lastRace": "前走の概要(日付・競馬場・レース名・距離・馬場状態など)。休養明けなら「休養明け」と明記",
-      "finish": "着順/頭数/人気(例:3着/12頭/1人)。分からなければ null",
-      "corner": "コーナー通過順位(例:9-8)。分からなければ null",
-      "lastFurlong": "上がり3Fタイム(秒、例:34.5)。分からなければ null",
+      "lastRace": "前走の概要。休養明けなら「休養明け」と明記。分からなければ null",
+      "finish": "着順/頭数/人気。分からなければ null",
+      "corner": "コーナー通過順位。分からなければ null",
+      "lastFurlong": "上がり3Fタイム(秒)。分からなければ null",
       "weightChange": "馬体重(増減)。分からなければ null",
-      "profileUrl": "netkeibaの馬個別ページURL。分からなければ null"
+      "profileUrl": null
     }
   ]
 }
 
-情報が見つからない・レースが特定できない場合は、代わりに
+出走馬の情報が貼り付け内容から読み取れない場合は、代わりに
 { "error": "理由の説明" } の形式で返してください。`;
 
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, cacheKey: `${raceName}|${raceDate}` }),
+        body: JSON.stringify({ prompt, cacheKey }),
       });
 
       if (!response.ok) {
@@ -172,7 +185,7 @@ ${dateHint}
       const data = await response.json();
 
       if (data.stop_reason === "max_tokens") {
-        setErrorMsg("出走頭数が多く、途中でデータが切れました。開催日を絞って、もう一度お試しください。");
+        setErrorMsg("出走頭数が多く、途中でデータが切れました。貼り付ける範囲を絞って、もう一度お試しください。");
         setStatus("error");
         return;
       }
@@ -183,7 +196,7 @@ ${dateHint}
         .join("\n");
 
       if (!textBlocks) {
-        setErrorMsg("応答が空でした。レース名の表記(正式名称)を確認して、もう一度お試しください。");
+        setErrorMsg("応答が空でした。もう一度お試しください。");
         setStatus("error");
         return;
       }
@@ -191,7 +204,7 @@ ${dateHint}
       const cleaned = textBlocks.replace(/```json|```/g, "").trim();
       const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        setErrorMsg("データの形式を読み取れませんでした。レースが見つからなかった可能性があります。レース名の表記を変えて、もう一度お試しください。");
+        setErrorMsg("データの形式を読み取れませんでした。貼り付けた内容を確認して、もう一度お試しください。");
         setStatus("error");
         return;
       }
@@ -212,7 +225,7 @@ ${dateHint}
       }
 
       if (!parsed.horses || parsed.horses.length === 0) {
-        setErrorMsg("該当するレースの出走馬データが見つかりませんでした。レース名や開催日を確認してください。");
+        setErrorMsg("出走馬データが見つかりませんでした。貼り付けた内容を確認してください。");
         setStatus("error");
         return;
       }
@@ -270,61 +283,120 @@ ${dateHint}
             </span>
           </div>
           <p className="text-sm mt-1" style={{ color: "#5B6B60" }}>
-            レース名を入れると、出走馬の血統・前走成績を自動でまとめます
+            レース名を入れる → ページを開く → コピー&貼り付け → 表になる。3ステップだけ。
           </p>
         </div>
 
-        {/* Form */}
+        {/* Step 1: find the page */}
+        <div
+          className="rounded-lg p-5 mb-4"
+          style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full text-sm font-bold text-white shrink-0"
+              style={{ background: "#1C6B41" }}
+            >
+              1
+            </span>
+            <label className="text-sm font-bold" style={{ color: "#14201A" }}>
+              レース名を入れて、ボタンでページを開く
+            </label>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="text"
+              value={raceName}
+              onChange={(e) => setRaceName(e.target.value)}
+              placeholder="例:CBC賞"
+              className="flex-1 px-4 py-3 rounded border text-base"
+              style={{ borderColor: "#D8DCD4" }}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => openSearch("netkeiba")}
+                className="flex-1 sm:flex-none px-4 py-3 rounded text-sm font-bold border whitespace-nowrap"
+                style={{ borderColor: "#1C6B41", color: "#1C6B41", background: "#FFFFFF" }}
+              >
+                netkeibaを開く
+              </button>
+              <button
+                onClick={() => openSearch("jra")}
+                className="flex-1 sm:flex-none px-4 py-3 rounded text-sm font-bold border whitespace-nowrap"
+                style={{ borderColor: "#5B6B60", color: "#5B6B60", background: "#FFFFFF" }}
+              >
+                JRA公式を開く
+              </button>
+            </div>
+          </div>
+          <p className="text-xs mt-2" style={{ color: "#8A9088" }}>
+            迷ったら「netkeibaを開く」でOK。情報が一番多い(血統・前走・
+            コーナー通過・上がり3Fが全部載っている)。
+          </p>
+        </div>
+
+        {/* Step 2: paste */}
         <div
           className="rounded-lg p-5 mb-8"
           style={{ background: "#FFFFFF", border: "1px solid #D8DCD4" }}
         >
-          <div className="grid sm:grid-cols-[2fr_1fr_auto] gap-3">
-            <div>
-              <label className="block text-xs font-bold mb-1" style={{ color: "#5B6B60" }}>
-                レース名
-              </label>
-              <input
-                type="text"
-                value={raceName}
-                onChange={(e) => setRaceName(e.target.value)}
-                placeholder="例:CBC賞"
-                className="w-full px-3 py-2 rounded border text-base"
-                style={{ borderColor: "#D8DCD4" }}
-                onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold mb-1" style={{ color: "#5B6B60" }}>
-                開催日(任意)
-              </label>
-              <input
-                type="text"
-                value={raceDate}
-                onChange={(e) => setRaceDate(e.target.value)}
-                placeholder="例:2026年8月9日"
-                className="w-full px-3 py-2 rounded border text-base"
-                style={{ borderColor: "#D8DCD4" }}
-                onKeyDown={(e) => e.key === "Enter" && handleFetch()}
-              />
-            </div>
-            <div className="flex items-end">
-              <button
-                onClick={handleFetch}
-                disabled={status === "loading"}
-                className="w-full sm:w-auto px-6 py-2 rounded font-bold text-white transition-opacity disabled:opacity-60"
-                style={{ background: "#1C6B41" }}
-              >
-                {status === "loading" ? "取得中…" : "取得する"}
-              </button>
-            </div>
+          <div className="flex items-center gap-2 mb-2">
+            <span
+              className="inline-flex items-center justify-center w-6 h-6 rounded-full text-sm font-bold text-white shrink-0"
+              style={{ background: "#1C6B41" }}
+            >
+              2
+            </span>
+            <label className="text-sm font-bold" style={{ color: "#14201A" }}>
+              開いたページの中身を全部コピーして、下に貼り付ける
+            </label>
+          </div>
+
+          <div
+            className="rounded-md p-3 mb-3 text-xs leading-relaxed"
+            style={{ background: "#F7F8F5", border: "1px solid #EAEBE7", color: "#5B6B60" }}
+          >
+            <p className="font-bold mb-1" style={{ color: "#14201A" }}>
+              コピーのしかた
+            </p>
+            <p>
+              <span className="font-bold">パソコン:</span> 開いたページ上で
+              右クリック(またはCtrl+クリック)→「すべて選択」→もう一度右クリック→
+              「コピー」
+            </p>
+            <p>
+              <span className="font-bold">スマホ:</span> 開いたページの文字を
+              長押し→「すべて選択」→「コピー」
+            </p>
+          </div>
+
+          <textarea
+            value={pastedText}
+            onChange={(e) => setPastedText(e.target.value)}
+            placeholder="ここを長押し(またはクリック)して「貼り付け」を選ぶ"
+            className="w-full px-3 py-3 rounded border text-sm font-mono"
+            style={{ borderColor: "#D8DCD4", minHeight: "160px" }}
+          />
+
+          <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+            <p className="text-xs" style={{ color: pastedText ? "#1C6B41" : "#C4C9C0" }}>
+              {pastedText ? "✓ 貼り付け済み" : "まだ何も貼り付けられていません"}
+            </p>
+            <button
+              onClick={handleParse}
+              disabled={status === "loading"}
+              className="px-8 py-3 rounded font-bold text-white text-base transition-opacity disabled:opacity-60"
+              style={{ background: "#1C6B41" }}
+            >
+              {status === "loading" ? "整形中…" : "表にする"}
+            </button>
           </div>
         </div>
 
         {/* Status */}
         {status === "loading" && (
           <div className="text-sm mb-6 animate-pulse" style={{ color: "#5B6B60" }}>
-            出馬表を検索しています…(数十秒かかることがあります)
+            貼り付けた内容を読み取っています…
           </div>
         )}
         {status === "error" && (
@@ -332,7 +404,8 @@ ${dateHint}
             className="rounded-lg p-4 mb-6 text-sm"
             style={{ background: "#FBEAE8", color: "#8A2E24", border: "1px solid #E3B4AC" }}
           >
-            {errorMsg}
+            <p className="font-bold mb-1">うまくいきませんでした</p>
+            <p>{errorMsg}</p>
           </div>
         )}
 
@@ -343,7 +416,7 @@ ${dateHint}
               <h2 className="text-xl font-bold">{meta?.title}</h2>
               {meta?.fromCache && (
                 <p className="text-xs" style={{ color: "#1C6B41" }}>
-                  ⚡ 保存済みデータから即座に表示(検索なし)
+                  ⚡ 保存済みデータから即座に表示
                 </p>
               )}
               {meta?.info && (
@@ -385,41 +458,28 @@ ${dateHint}
                           <span className="tabular-nums font-bold">{h.umaban}</span>
                         </div>
                       </td>
-                      <td className="px-3 py-2 font-bold whitespace-nowrap">
-                        {h.profileUrl ? (
-                          <a
-                            href={h.profileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="hover:underline"
-                          >
-                            {h.name}
-                          </a>
-                        ) : (
-                          h.name
-                        )}
-                      </td>
+                      <td className="px-3 py-2 font-bold whitespace-nowrap">{h.name}</td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
                         {h.sexAge} / {h.weight}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">{h.jockey}</td>
                       <td className="px-3 py-2 whitespace-nowrap" style={{ color: "#5B6B60" }}>
-                        <Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={h.profileUrl} />
+                        <Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={null} />
                       </td>
                       <td className="px-3 py-2" style={{ minWidth: "220px" }}>
-                        <Cell value={h.lastRace} profileUrl={h.profileUrl} />
+                        <Cell value={h.lastRace} profileUrl={null} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.finish} profileUrl={h.profileUrl} />
+                        <Cell value={h.finish} profileUrl={null} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.corner} profileUrl={h.profileUrl} />
+                        <Cell value={h.corner} profileUrl={null} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.lastFurlong} profileUrl={h.profileUrl} />
+                        <Cell value={h.lastFurlong} profileUrl={null} />
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap tabular-nums">
-                        <Cell value={h.weightChange} profileUrl={h.profileUrl} />
+                        <Cell value={h.weightChange} profileUrl={null} />
                       </td>
                     </tr>
                   ))}
@@ -438,32 +498,21 @@ ${dateHint}
                   <div className="flex items-center gap-2 mb-2">
                     <WakuBadge n={h.waku} />
                     <span className="tabular-nums font-bold text-sm">{h.umaban}</span>
-                    {h.profileUrl ? (
-                      <a
-                        href={h.profileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold hover:underline"
-                      >
-                        {h.name}
-                      </a>
-                    ) : (
-                      <span className="font-bold">{h.name}</span>
-                    )}
+                    <span className="font-bold">{h.name}</span>
                   </div>
                   <div className="text-xs grid grid-cols-2 gap-x-3 gap-y-1" style={{ color: "#5B6B60" }}>
                     <div>{h.sexAge} / {h.weight}kg</div>
                     <div>騎手:{h.jockey}</div>
                     <div className="col-span-2">
-                      血統:<Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={h.profileUrl} />
+                      血統:<Cell value={h.sire && h.dam && h.damSire ? `${h.sire} / ${h.dam} / ${h.damSire}` : null} profileUrl={null} />
                     </div>
                     <div className="col-span-2">
-                      前走:<Cell value={h.lastRace} profileUrl={h.profileUrl} />
+                      前走:<Cell value={h.lastRace} profileUrl={null} />
                     </div>
-                    <div>着順:<Cell value={h.finish} profileUrl={h.profileUrl} /></div>
-                    <div>通過:<Cell value={h.corner} profileUrl={h.profileUrl} /></div>
-                    <div>上がり3F:<Cell value={h.lastFurlong} profileUrl={h.profileUrl} /></div>
-                    <div>体重:<Cell value={h.weightChange} profileUrl={h.profileUrl} /></div>
+                    <div>着順:<Cell value={h.finish} profileUrl={null} /></div>
+                    <div>通過:<Cell value={h.corner} profileUrl={null} /></div>
+                    <div>上がり3F:<Cell value={h.lastFurlong} profileUrl={null} /></div>
+                    <div>体重:<Cell value={h.weightChange} profileUrl={null} /></div>
                   </div>
                 </div>
               ))}
@@ -473,21 +522,10 @@ ${dateHint}
 
         {/* Footnote */}
         <div className="mt-10 pt-4 text-xs leading-relaxed" style={{ borderTop: "1px solid #D8DCD4", color: "#8A9088" }}>
-          <p>
-            ・「上がり3F」は同レース内の順位ではなく、そのレースでのタイム(秒)です。
-          </p>
-          <p>
-            ・休養明けの馬は「前走」欄が空くことがあります。その場合は直近の実走レースを表示します。
-          </p>
-          <p>
-            ・データは検索結果をもとに自動整理したものです。重要な用途に使う前に一度確認してください。
-          </p>
-          <p>
-            ・空欄になった項目は「要確認」のリンクから、その馬のnetkeibaページを直接開いて確認できます。
-          </p>
-          <p>
-            ・「全頭コピー」で、LINEやメモにそのまま貼れる読みやすい形式でコピーできます。
-          </p>
+          <p>・このツールは検索やページ取得を一切行いません。貼り付けた内容だけを整形します。</p>
+          <p>・「上がり3F」は同レース内の順位ではなく、そのレースでのタイム(秒)です。</p>
+          <p>・貼り付け内容に無い項目は空欄(「要確認」ではなく「—」)になります。元のページで確認してください。</p>
+          <p>・「全頭コピー」で、LINEやメモにそのまま貼れる読みやすい形式でコピーできます。</p>
         </div>
       </div>
     </div>
